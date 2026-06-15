@@ -87,3 +87,23 @@ class RiskAlert(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     medicine = relationship("Medicine", back_populates="risk_alerts")
+
+
+class BabyMedicineConfig(Base):
+    __tablename__ = "baby_medicine_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    baby_id = Column(Integer, ForeignKey("baby_profiles.id"), nullable=False, index=True)
+    medicine_id = Column(Integer, ForeignKey("medicines.id"), nullable=False, index=True)
+    is_disabled = Column(Boolean, default=False, nullable=False)
+    disable_reason = Column(Text, nullable=True)
+    doctor_advice = Column(Text, nullable=True)
+    contraindication_tags = Column(Text, nullable=True)
+    remind_days_before = Column(Integer, default=7, nullable=False)
+    enable_stock_alert = Column(Boolean, default=True, nullable=False)
+    enable_open_alert = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    baby = relationship("BabyProfile", backref="medicine_configs")
+    medicine = relationship("Medicine", backref="baby_configs")

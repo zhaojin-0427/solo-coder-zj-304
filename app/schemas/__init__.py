@@ -6,7 +6,9 @@ from .schemas import (
     RiskAlertOut,
     RiskItem, RiskAssessment, RestockSuggestion,
     StatisticsData,
-    TurnoverCycleItem, AgeRiskDistributionItem, HighFrequencyRestockItem
+    TurnoverCycleItem, AgeRiskDistributionItem, HighFrequencyRestockItem,
+    BabyMedicineConfigBase, BabyMedicineConfigCreate, BabyMedicineConfigUpdate, BabyMedicineConfigOut,
+    BabyDisabledMedicineItem, BabyHighRiskAlertItem, BabySubscriptionCoverageItem
 )
 
 __all__ = [
@@ -17,5 +19,7 @@ __all__ = [
     "RiskAlertOut",
     "RiskItem", "RiskAssessment", "RestockSuggestion",
     "StatisticsData",
-    "TurnoverCycleItem", "AgeRiskDistributionItem", "HighFrequencyRestockItem"
+    "TurnoverCycleItem", "AgeRiskDistributionItem", "HighFrequencyRestockItem",
+    "BabyMedicineConfigBase", "BabyMedicineConfigCreate", "BabyMedicineConfigUpdate", "BabyMedicineConfigOut",
+    "BabyDisabledMedicineItem", "BabyHighRiskAlertItem", "BabySubscriptionCoverageItem"
 ]

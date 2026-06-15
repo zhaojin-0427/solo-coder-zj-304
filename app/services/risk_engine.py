@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
 from app.models import Medicine, BabyProfile
-from app.schemas import RiskItem, RiskAssessment
+from app.schemas import RiskItem, RiskAssessment, BabyMedicineConfigOut
 
 
 EXPIRING_SOON_DAYS = 30
@@ -18,6 +18,7 @@ ALERT_TYPE_EXPIRY = "EXPIRY"
 ALERT_TYPE_POST_OPEN = "POST_OPEN"
 ALERT_TYPE_AGE_MISMATCH = "AGE_MISMATCH"
 ALERT_TYPE_LOW_STOCK = "LOW_STOCK"
+ALERT_TYPE_BABY_DISABLED = "BABY_DISABLED"
 
 
 MEDICINE_TYPE_POST_OPEN_RULES = {
@@ -193,33 +194,63 @@ def check_stock_level(medicine: Medicine) -> Optional[RiskItem]:
     return None
 
 
+def check_baby_disabled(
+    medicine: Medicine,
+    baby_config: Optional[object] = None
+) -> Optional[RiskItem]:
+    if baby_config is None:
+        return None
+    if not baby_config.is_disabled:
+        return None
+
+    reason = baby_config.disable_reason or "该宝宝对此药品已设置禁用"
+    tags = baby_config.contraindication_tags or ""
+    tag_info = f"（禁忌标签：{tags}）" if tags else ""
+
+    return RiskItem(
+        alert_type=ALERT_TYPE_BABY_DISABLED,
+        risk_level=RISK_LEVEL_CRITICAL,
+        message=f"该药品对此宝宝已被禁用：{reason}{tag_info}，请勿使用！"
+    )
+
+
 def assess_medicine_risk(
     medicine: Medicine,
     baby: BabyProfile = None,
     age_months: int = None,
-    today: date = None
+    today: date = None,
+    baby_config: Optional[object] = None
 ) -> RiskAssessment:
     if today is None:
         today = date.today()
 
     risks: List[RiskItem] = []
 
-    expiry_risk = check_expiry(medicine, today)
+    baby_disabled_risk = check_baby_disabled(medicine, baby_config)
+    if baby_disabled_risk:
+        risks.append(baby_disabled_risk)
+
+    expiring_soon_days = EXPIRING_SOON_DAYS
+    if baby_config and baby_config.remind_days_before:
+        expiring_soon_days = baby_config.remind_days_before
+    expiry_risk = check_expiry(medicine, today, expiring_soon_days=expiring_soon_days)
     if expiry_risk:
         risks.append(expiry_risk)
 
-    post_open_risk = check_post_open_validity(medicine, today)
-    if post_open_risk:
-        risks.append(post_open_risk)
+    if baby_config is None or baby_config.enable_open_alert:
+        post_open_risk = check_post_open_validity(medicine, today)
+        if post_open_risk:
+            risks.append(post_open_risk)
 
     if baby or age_months is not None:
         age_risk = check_age_appropriateness(medicine, baby, age_months)
         if age_risk:
             risks.append(age_risk)
 
-    stock_risk = check_stock_level(medicine)
-    if stock_risk:
-        risks.append(stock_risk)
+    if baby_config is None or baby_config.enable_stock_alert:
+        stock_risk = check_stock_level(medicine)
+        if stock_risk:
+            risks.append(stock_risk)
 
     overall_risk = RISK_LEVEL_LOW
     if risks:
@@ -231,24 +262,38 @@ def assess_medicine_risk(
         elif RISK_LEVEL_MEDIUM in risk_levels:
             overall_risk = RISK_LEVEL_MEDIUM
 
-    advice = generate_advice(overall_risk, risks)
+    advice = generate_advice(overall_risk, risks, baby_config)
+
+    baby_id = None
+    baby_name = None
+    if baby:
+        baby_id = baby.id
+        baby_name = baby.name
+
+    baby_config_out = None
+    if baby_config:
+        baby_config_out = BabyMedicineConfigOut.model_validate(baby_config)
 
     return RiskAssessment(
         medicine_id=medicine.id,
         medicine_name=medicine.name,
+        baby_id=baby_id,
+        baby_name=baby_name,
         overall_risk=overall_risk,
         risks=risks,
-        advice=advice
+        advice=advice,
+        baby_config=baby_config_out
     )
 
 
-def generate_advice(overall_risk: str, risks: List[RiskItem]) -> str:
+def generate_advice(overall_risk: str, risks: List[RiskItem], baby_config: Optional[object] = None) -> str:
     if overall_risk == RISK_LEVEL_LOW:
         return "药品状态良好，可正常使用。请定期检查有效期和库存。"
 
     advice_parts = []
 
     has_critical = any(r.risk_level == RISK_LEVEL_CRITICAL for r in risks)
+    has_baby_disabled = any(r.alert_type == ALERT_TYPE_BABY_DISABLED for r in risks)
     has_expiry = any(r.alert_type == ALERT_TYPE_EXPIRY for r in risks)
     has_post_open = any(r.alert_type == ALERT_TYPE_POST_OPEN for r in risks)
     has_age = any(r.alert_type == ALERT_TYPE_AGE_MISMATCH for r in risks)
@@ -256,6 +301,11 @@ def generate_advice(overall_risk: str, risks: List[RiskItem]) -> str:
 
     if has_critical:
         advice_parts.append("【重要警示】存在严重风险，请立即处理！")
+
+    if has_baby_disabled:
+        advice_parts.append("【个性化禁用提醒】该药品对此宝宝已被禁用，请严格遵守禁用规则，切勿使用。")
+        if baby_config and baby_config.doctor_advice:
+            advice_parts.append(f"【医生建议】{baby_config.doctor_advice}")
 
     if has_expiry:
         advice_parts.append("【有效期提醒】请检查药品有效期，过期药品严禁使用。临期药品建议优先使用或更换。")

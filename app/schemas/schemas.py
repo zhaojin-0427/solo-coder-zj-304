@@ -140,6 +140,41 @@ class RestockRecordOut(RestockRecordBase):
         from_attributes = True
 
 
+class BabyMedicineConfigBase(BaseModel):
+    baby_id: int = Field(..., description="宝宝ID")
+    medicine_id: int = Field(..., description="药品ID")
+    is_disabled: bool = Field(False, description="是否禁用该药品")
+    disable_reason: Optional[str] = Field(None, description="禁用原因")
+    doctor_advice: Optional[str] = Field(None, description="医生建议备注")
+    contraindication_tags: Optional[str] = Field(None, description="用药禁忌标签，多个以逗号分隔")
+    remind_days_before: int = Field(7, ge=1, le=90, description="提醒提前天数")
+    enable_stock_alert: bool = Field(True, description="是否启用库存提醒")
+    enable_open_alert: bool = Field(True, description="是否启用开封提醒")
+
+
+class BabyMedicineConfigCreate(BabyMedicineConfigBase):
+    pass
+
+
+class BabyMedicineConfigUpdate(BaseModel):
+    is_disabled: Optional[bool] = None
+    disable_reason: Optional[str] = None
+    doctor_advice: Optional[str] = None
+    contraindication_tags: Optional[str] = None
+    remind_days_before: Optional[int] = Field(None, ge=1, le=90)
+    enable_stock_alert: Optional[bool] = None
+    enable_open_alert: Optional[bool] = None
+
+
+class BabyMedicineConfigOut(BabyMedicineConfigBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class RiskAlertOut(BaseModel):
     id: int
     medicine_id: int
@@ -163,9 +198,12 @@ class RiskItem(BaseModel):
 class RiskAssessment(BaseModel):
     medicine_id: int
     medicine_name: str
+    baby_id: Optional[int] = None
+    baby_name: Optional[str] = None
     overall_risk: str
     risks: List[RiskItem]
     advice: str
+    baby_config: Optional[BabyMedicineConfigOut] = None
 
 
 class RestockSuggestion(BaseModel):
@@ -178,6 +216,8 @@ class RestockSuggestion(BaseModel):
     suggested_quantity: float
     reason: str
     urgency: str
+    baby_id: Optional[int] = None
+    baby_name: Optional[str] = None
 
 
 class TurnoverCycleItem(BaseModel):
@@ -200,6 +240,28 @@ class HighFrequencyRestockItem(BaseModel):
     total_quantity: float
 
 
+class BabyDisabledMedicineItem(BaseModel):
+    baby_id: int
+    baby_name: str
+    disabled_medicine_count: int
+    disabled_medicines: List[dict]
+
+
+class BabyHighRiskAlertItem(BaseModel):
+    baby_id: int
+    baby_name: str
+    high_risk_alert_count: int
+    critical_risk_alert_count: int
+
+
+class BabySubscriptionCoverageItem(BaseModel):
+    baby_id: int
+    baby_name: str
+    total_medicines: int
+    subscribed_medicines: int
+    coverage_rate: float
+
+
 class StatisticsData(BaseModel):
     total_medicines: int
     expiring_soon_count: int
@@ -210,3 +272,6 @@ class StatisticsData(BaseModel):
     avg_turnover_cycles: List[TurnoverCycleItem]
     age_risk_distribution: List[AgeRiskDistributionItem]
     high_frequency_restock: List[HighFrequencyRestockItem]
+    baby_disabled_medicines: List[BabyDisabledMedicineItem] = []
+    baby_high_risk_alerts: List[BabyHighRiskAlertItem] = []
+    baby_subscription_coverage: List[BabySubscriptionCoverageItem] = []

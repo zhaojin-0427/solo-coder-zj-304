@@ -6,12 +6,13 @@ from datetime import date, timedelta
 from collections import defaultdict
 
 from app.database import get_db
-from app.models import Medicine, RestockRecord, BabyProfile
+from app.models import Medicine, RestockRecord, BabyProfile, BabyMedicineConfig
 from app.services.risk_engine import (
     check_expiry,
     check_post_open_validity,
     check_age_appropriateness,
     check_stock_level,
+    check_baby_disabled,
     get_age_group,
     EXPIRING_SOON_DAYS,
     RISK_LEVEL_LOW,
@@ -47,7 +48,18 @@ def get_statistics_overview(
             return error_response(code=404, message="宝宝档案不存在")
 
     for med in medicines:
-        expiry_risk = check_expiry(med, today)
+        baby_config = None
+        if baby:
+            baby_config = db.query(BabyMedicineConfig).filter(
+                BabyMedicineConfig.baby_id == baby.id,
+                BabyMedicineConfig.medicine_id == med.id
+            ).first()
+
+        expiring_soon_days = EXPIRING_SOON_DAYS
+        if baby_config and baby_config.remind_days_before:
+            expiring_soon_days = baby_config.remind_days_before
+
+        expiry_risk = check_expiry(med, today, expiring_soon_days=expiring_soon_days)
         if expiry_risk:
             days_to = (med.expiry_date - today).days
             if days_to < 0:
@@ -55,13 +67,15 @@ def get_statistics_overview(
             else:
                 expiring_soon_count += 1
 
-        post_open_risk = check_post_open_validity(med, today)
-        if post_open_risk and post_open_risk.risk_level == RISK_LEVEL_CRITICAL:
-            post_open_expired_count += 1
+        if baby_config is None or baby_config.enable_open_alert:
+            post_open_risk = check_post_open_validity(med, today)
+            if post_open_risk and post_open_risk.risk_level == RISK_LEVEL_CRITICAL:
+                post_open_expired_count += 1
 
-        stock_risk = check_stock_level(med)
-        if stock_risk:
-            low_stock_count += 1
+        if baby_config is None or baby_config.enable_stock_alert:
+            stock_risk = check_stock_level(med)
+            if stock_risk:
+                low_stock_count += 1
 
         if baby or age_months is not None:
             age_risk = check_age_appropriateness(med, baby=baby, age_months=age_months)
@@ -71,6 +85,9 @@ def get_statistics_overview(
     avg_turnover = _calculate_avg_turnover(db)
     age_distribution = _get_age_risk_distribution(medicines, baby, age_months)
     high_freq_restock = _get_high_frequency_restock(db)
+    baby_disabled_medicines = _get_baby_disabled_medicines(db, baby_id)
+    baby_high_risk_alerts = _get_baby_high_risk_alerts(db, baby_id)
+    baby_subscription_coverage = _get_baby_subscription_coverage(db, baby_id)
 
     result = {
         "total_medicines": total,
@@ -81,7 +98,10 @@ def get_statistics_overview(
         "age_mismatch_count": age_mismatch_count,
         "avg_turnover_cycles": avg_turnover,
         "age_risk_distribution": age_distribution,
-        "high_frequency_restock": high_freq_restock
+        "high_frequency_restock": high_freq_restock,
+        "baby_disabled_medicines": baby_disabled_medicines,
+        "baby_high_risk_alerts": baby_high_risk_alerts,
+        "baby_subscription_coverage": baby_subscription_coverage
     }
     return success_response(data=result, message="统计数据获取成功")
 
@@ -355,3 +375,121 @@ def _risk_priority(risk_level: str) -> int:
         "LOW": 3
     }
     return priority.get(risk_level, 99)
+
+
+def _get_baby_disabled_medicines(db: Session, baby_id: Optional[int] = None) -> List[dict]:
+    query = db.query(BabyMedicineConfig).filter(BabyMedicineConfig.is_disabled == True)
+    if baby_id:
+        query = query.filter(BabyMedicineConfig.baby_id == baby_id)
+
+    configs = query.all()
+    baby_map = {}
+    for c in configs:
+        if c.baby_id not in baby_map:
+            baby_map[c.baby_id] = {
+                "baby_id": c.baby_id,
+                "baby_name": c.baby.name if c.baby else None,
+                "disabled_medicines": []
+            }
+        med_name = c.medicine.name if c.medicine else None
+        baby_map[c.baby_id]["disabled_medicines"].append({
+            "medicine_id": c.medicine_id,
+            "medicine_name": med_name,
+            "disable_reason": c.disable_reason,
+            "contraindication_tags": c.contraindication_tags,
+            "doctor_advice": c.doctor_advice
+        })
+
+    result = []
+    for bid, data in baby_map.items():
+        result.append({
+            "baby_id": data["baby_id"],
+            "baby_name": data["baby_name"],
+            "disabled_medicine_count": len(data["disabled_medicines"]),
+            "disabled_medicines": data["disabled_medicines"]
+        })
+    return result
+
+
+def _get_baby_high_risk_alerts(db: Session, baby_id: Optional[int] = None) -> List[dict]:
+    babies = db.query(BabyProfile).all()
+    if baby_id:
+        babies = [b for b in babies if b.id == baby_id]
+
+    medicines = db.query(Medicine).all()
+    result = []
+
+    for baby in babies:
+        high_risk_count = 0
+        critical_risk_count = 0
+
+        for med in medicines:
+            config = db.query(BabyMedicineConfig).filter(
+                BabyMedicineConfig.baby_id == baby.id,
+                BabyMedicineConfig.medicine_id == med.id
+            ).first()
+
+            disabled_risk = check_baby_disabled(med, config)
+            if disabled_risk:
+                critical_risk_count += 1
+                continue
+
+            from app.services.risk_engine import assess_medicine_risk
+            assessment = assess_medicine_risk(med, baby=baby, baby_config=config)
+            if assessment.overall_risk == RISK_LEVEL_CRITICAL:
+                critical_risk_count += 1
+            elif assessment.overall_risk == RISK_LEVEL_HIGH:
+                high_risk_count += 1
+
+        result.append({
+            "baby_id": baby.id,
+            "baby_name": baby.name,
+            "high_risk_alert_count": high_risk_count,
+            "critical_risk_alert_count": critical_risk_count
+        })
+
+    return result
+
+
+def _get_baby_subscription_coverage(db: Session, baby_id: Optional[int] = None) -> List[dict]:
+    babies = db.query(BabyProfile).all()
+    if baby_id:
+        babies = [b for b in babies if b.id == baby_id]
+
+    total_medicines = db.query(Medicine).count()
+    result = []
+
+    for baby in babies:
+        configs = db.query(BabyMedicineConfig).filter(
+            BabyMedicineConfig.baby_id == baby.id
+        ).all()
+
+        subscribed = len(configs)
+        coverage_rate = round(subscribed / total_medicines, 4) if total_medicines > 0 else 0
+
+        result.append({
+            "baby_id": baby.id,
+            "baby_name": baby.name,
+            "total_medicines": total_medicines,
+            "subscribed_medicines": subscribed,
+            "coverage_rate": coverage_rate
+        })
+
+    return result
+
+
+@router.get("/baby-summary", response_model=dict)
+def get_baby_summary(
+    baby_id: Optional[int] = Query(None, description="宝宝ID，不传则返回所有宝宝的汇总"),
+    db: Session = Depends(get_db)
+):
+    baby_disabled = _get_baby_disabled_medicines(db, baby_id)
+    baby_risks = _get_baby_high_risk_alerts(db, baby_id)
+    baby_coverage = _get_baby_subscription_coverage(db, baby_id)
+
+    result = {
+        "baby_disabled_medicines": baby_disabled,
+        "baby_high_risk_alerts": baby_risks,
+        "baby_subscription_coverage": baby_coverage
+    }
+    return success_response(data=result, message="宝宝个性化统计汇总获取成功")

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.database import get_db
-from app.models import RestockRecord, Medicine
+from app.models import RestockRecord, Medicine, BabyMedicineConfig, BabyProfile
 from app.schemas import RestockRecordCreate, RestockRecordOut, RestockSuggestion
 from app.utils import success_response, error_response
 
@@ -51,12 +51,28 @@ def list_restock_records(
 
 
 @router.get("/suggestions", response_model=dict)
-def get_restock_suggestions(db: Session = Depends(get_db)):
+def get_restock_suggestions(
+    baby_id: Optional[int] = Query(None, description="宝宝ID，传了则按个性化库存提醒配置筛选"),
+    db: Session = Depends(get_db)
+):
     medicines = db.query(Medicine).all()
     suggestions: List[dict] = []
 
+    baby = None
+    if baby_id:
+        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+
     for med in medicines:
-        suggestion = _generate_suggestion(med)
+        baby_config = None
+        if baby_id:
+            baby_config = db.query(BabyMedicineConfig).filter(
+                BabyMedicineConfig.baby_id == baby_id,
+                BabyMedicineConfig.medicine_id == med.id
+            ).first()
+            if baby_config and not baby_config.enable_stock_alert:
+                continue
+
+        suggestion = _generate_suggestion(med, baby_id=baby_id, baby_name=baby.name if baby else None)
         if suggestion:
             suggestions.append(suggestion)
 
@@ -65,7 +81,7 @@ def get_restock_suggestions(db: Session = Depends(get_db)):
     return success_response(data=suggestions, message="补货建议生成成功")
 
 
-def _generate_suggestion(medicine: Medicine) -> Optional[dict]:
+def _generate_suggestion(medicine: Medicine, baby_id: int = None, baby_name: str = None) -> Optional[dict]:
     if medicine.current_stock >= medicine.min_stock * 1.5:
         return None
 
@@ -98,7 +114,7 @@ def _generate_suggestion(medicine: Medicine) -> Optional[dict]:
     elif days_to_expiry < 30:
         reason += f"；注意：药品仅剩 {days_to_expiry} 天过期，补货时请注意有效期"
 
-    return {
+    result = {
         "medicine_id": medicine.id,
         "medicine_name": medicine.name,
         "medicine_type": medicine.medicine_type,
@@ -109,6 +125,10 @@ def _generate_suggestion(medicine: Medicine) -> Optional[dict]:
         "reason": reason,
         "urgency": urgency
     }
+    if baby_id is not None:
+        result["baby_id"] = baby_id
+        result["baby_name"] = baby_name
+    return result
 
 
 @router.get("/{record_id}", response_model=dict)

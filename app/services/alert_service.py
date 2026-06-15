@@ -1,10 +1,17 @@
 from datetime import date
 from sqlalchemy.orm import Session
-from app.models import Medicine, BabyProfile, RiskAlert
+from app.models import Medicine, BabyProfile, RiskAlert, BabyMedicineConfig
 from app.services.risk_engine import (
     assess_medicine_risk,
     RiskAssessment
 )
+
+
+def _get_baby_config(db: Session, baby_id: int, medicine_id: int):
+    return db.query(BabyMedicineConfig).filter(
+        BabyMedicineConfig.baby_id == baby_id,
+        BabyMedicineConfig.medicine_id == medicine_id
+    ).first()
 
 
 def sync_alerts_for_medicine(
@@ -12,12 +19,15 @@ def sync_alerts_for_medicine(
     medicine: Medicine,
     baby: BabyProfile = None,
     age_months: int = None,
-    today: date = None
+    today: date = None,
+    baby_config: BabyMedicineConfig = None
 ) -> RiskAssessment:
     if today is None:
         today = date.today()
 
-    assessment = assess_medicine_risk(medicine, baby=baby, age_months=age_months, today=today)
+    assessment = assess_medicine_risk(
+        medicine, baby=baby, age_months=age_months, today=today, baby_config=baby_config
+    )
 
     for risk in assessment.risks:
         existing = db.query(RiskAlert).filter(
@@ -51,7 +61,13 @@ def sync_alerts_for_all(
     results = []
 
     for med in medicines:
-        assessment = sync_alerts_for_medicine(db, med, baby=baby, age_months=age_months, today=today)
+        baby_config = None
+        if baby:
+            baby_config = _get_baby_config(db, baby.id, med.id)
+
+        assessment = sync_alerts_for_medicine(
+            db, med, baby=baby, age_months=age_months, today=today, baby_config=baby_config
+        )
         results.append(assessment)
 
     return results
