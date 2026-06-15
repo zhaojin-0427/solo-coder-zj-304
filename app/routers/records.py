@@ -37,15 +37,9 @@ def list_records(
 ):
     query = db.query(MedicationRecord)
 
-    if medicine_id is not None:
-        medicine = db.query(Medicine).filter(Medicine.id == medicine_id).first()
-        if not medicine:
-            return error_response(code=404, message="药品不存在")
+    if medicine_id:
         query = query.filter(MedicationRecord.medicine_id == medicine_id)
-    if baby_id is not None:
-        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
-        if not baby:
-            return error_response(code=404, message="宝宝档案不存在")
+    if baby_id:
         query = query.filter(MedicationRecord.baby_id == baby_id)
 
     total = query.count()

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -18,12 +18,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def migrate_db():
-    with engine.connect() as conn:
-        result = conn.execute(text("PRAGMA table_info(risk_alerts)"))
-        columns = [row[1] for row in result.fetchall()]
-        if "disposition_status" not in columns:
-            conn.execute(text("ALTER TABLE risk_alerts ADD COLUMN disposition_status VARCHAR(20) DEFAULT 'PENDING' NOT NULL"))
-            conn.commit()

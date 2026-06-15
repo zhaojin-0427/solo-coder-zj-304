@@ -85,12 +85,10 @@ class RiskAlert(Base):
     risk_level = Column(String(20), nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)
-    disposition_status = Column(String(20), default="PENDING", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     medicine = relationship("Medicine", back_populates="risk_alerts")
     baby = relationship("BabyProfile", backref="risk_alerts")
-    disposition_events = relationship("DispositionEvent", back_populates="risk_alert", order_by="DispositionEvent.event_time")
 
 
 class BatchProfile(Base):
@@ -148,21 +146,3 @@ class BabyMedicineConfig(Base):
 
     baby = relationship("BabyProfile", backref="medicine_configs")
     medicine = relationship("Medicine", backref="baby_configs")
-
-
-class DispositionEvent(Base):
-    __tablename__ = "disposition_events"
-
-    id = Column(Integer, primary_key=True, index=True)
-    risk_alert_id = Column(Integer, ForeignKey("risk_alerts.id"), nullable=False, index=True)
-    baby_id = Column(Integer, ForeignKey("baby_profiles.id"), nullable=True, index=True)
-    medicine_id = Column(Integer, ForeignKey("medicines.id"), nullable=False, index=True)
-    action = Column(String(50), nullable=False)
-    description = Column(Text, nullable=True)
-    attachment_url = Column(String(500), nullable=True)
-    event_time = Column(DateTime(timezone=True), server_default=func.now())
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    risk_alert = relationship("RiskAlert", back_populates="disposition_events")
-    baby = relationship("BabyProfile", backref="disposition_events")
-    medicine = relationship("Medicine", backref="disposition_events")

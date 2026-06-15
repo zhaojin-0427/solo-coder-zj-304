@@ -6,7 +6,6 @@ from .risk import router as risk_router
 from .statistics import router as statistics_router
 from .baby_medicine_config import router as baby_medicine_config_router
 from .batch import router as batch_router
-from .disposition import router as disposition_router
 
 __all__ = [
     "medicines_router",
@@ -16,6 +15,5 @@ __all__ = [
     "risk_router",
     "statistics_router",
     "baby_medicine_config_router",
-    "batch_router",
-    "disposition_router"
+    "batch_router"
 ]
