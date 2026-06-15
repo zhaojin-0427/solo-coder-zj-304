@@ -10,6 +10,7 @@ from app.services.risk_engine import (
     check_post_open_validity,
     check_age_appropriateness,
     check_stock_level,
+    check_recall_risk,
     EXPIRING_SOON_DAYS
 )
 from app.services.alert_service import sync_alerts_for_medicine, sync_alerts_for_all
@@ -62,7 +63,13 @@ def assess_single_medicine(
     assessment = sync_alerts_for_medicine(
         db, medicine, baby=baby, age_months=age_months, baby_config=baby_config
     )
-    return success_response(data=assessment.model_dump(), message="风险评估完成，告警已同步")
+    result = assessment.model_dump()
+
+    from app.services.recall_service import get_medicine_recall_info
+    recall_info = get_medicine_recall_info(medicine_id, db)
+    result["recall_info"] = recall_info
+
+    return success_response(data=result, message="风险评估完成，告警已同步")
 
 
 @router.get("/expiry-monitor", response_model=dict)
@@ -109,6 +116,11 @@ def expiry_monitor(
             if baby_id:
                 item["baby_id"] = baby_id
                 item["remind_days_before"] = effective_days
+
+            from app.services.recall_service import get_medicine_recall_info
+            recall_info = get_medicine_recall_info(med.id, db)
+            if recall_info:
+                item["recall_info"] = recall_info
             if days_to_expiry < 0:
                 expired.append(item)
             else:

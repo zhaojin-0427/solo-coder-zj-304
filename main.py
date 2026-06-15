@@ -11,7 +11,8 @@ from app.routers import (
     restock_router,
     risk_router,
     statistics_router,
-    baby_medicine_config_router
+    baby_medicine_config_router,
+    batch_router
 )
 from app.utils import success_response, error_response
 
@@ -38,6 +39,7 @@ app.include_router(restock_router)
 app.include_router(risk_router)
 app.include_router(statistics_router)
 app.include_router(baby_medicine_config_router)
+app.include_router(batch_router)
 
 
 @app.get("/", tags=["根路径"])

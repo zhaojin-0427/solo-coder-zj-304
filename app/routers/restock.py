@@ -25,7 +25,15 @@ def create_restock(record: RestockRecordCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(db_record)
-    return success_response(data=RestockRecordOut.model_validate(db_record).model_dump(), message="补货记录创建成功")
+
+    result = RestockRecordOut.model_validate(db_record).model_dump()
+
+    from app.services.recall_service import check_restock_recall_risk
+    recall_risk = check_restock_recall_risk(record.medicine_id, record.batch_number, db)
+    if recall_risk:
+        result["recall_risk"] = recall_risk
+
+    return success_response(data=result, message="补货记录创建成功")
 
 
 @router.get("", response_model=dict)
@@ -74,7 +82,7 @@ def get_restock_suggestions(
             if baby_config and not baby_config.enable_stock_alert:
                 continue
 
-        suggestion = _generate_suggestion(med, baby_id=baby_id, baby_name=baby.name if baby else None)
+        suggestion = _generate_suggestion(med, baby_id=baby_id, baby_name=baby.name if baby else None, db=db)
         if suggestion:
             suggestions.append(suggestion)
 
@@ -83,7 +91,7 @@ def get_restock_suggestions(
     return success_response(data=suggestions, message="补货建议生成成功")
 
 
-def _generate_suggestion(medicine: Medicine, baby_id: int = None, baby_name: str = None) -> Optional[dict]:
+def _generate_suggestion(medicine: Medicine, baby_id: int = None, baby_name: str = None, db: Session = None) -> Optional[dict]:
     if medicine.current_stock >= medicine.min_stock * 1.5:
         return None
 
@@ -130,6 +138,17 @@ def _generate_suggestion(medicine: Medicine, baby_id: int = None, baby_name: str
     if baby_id is not None:
         result["baby_id"] = baby_id
         result["baby_name"] = baby_name
+
+    if db is not None:
+        from app.services.recall_service import get_medicine_recall_info
+        recall_info = get_medicine_recall_info(medicine.id, db)
+        if recall_info:
+            result["recall_info"] = recall_info
+            if urgency not in ["critical", "high"]:
+                urgency = "high"
+                result["urgency"] = "high"
+            result["reason"] += "；注意：该药品存在召回风险，补货前请确认召回情况"
+
     return result
 
 

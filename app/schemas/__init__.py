@@ -8,7 +8,10 @@ from .schemas import (
     StatisticsData,
     TurnoverCycleItem, AgeRiskDistributionItem, HighFrequencyRestockItem,
     BabyMedicineConfigBase, BabyMedicineConfigCreate, BabyMedicineConfigUpdate, BabyMedicineConfigOut,
-    BabyDisabledMedicineItem, BabyHighRiskAlertItem, BabySubscriptionCoverageItem
+    BabyDisabledMedicineItem, BabyHighRiskAlertItem, BabySubscriptionCoverageItem,
+    BatchProfileBase, BatchProfileCreate, BatchProfileUpdate, BatchProfileOut,
+    RecallAnnouncementBase, RecallAnnouncementCreate, RecallAnnouncementUpdate, RecallAnnouncementOut,
+    RecallHitItem, ManufacturerRecallStatItem
 )
 
 __all__ = [
@@ -21,5 +24,8 @@ __all__ = [
     "StatisticsData",
     "TurnoverCycleItem", "AgeRiskDistributionItem", "HighFrequencyRestockItem",
     "BabyMedicineConfigBase", "BabyMedicineConfigCreate", "BabyMedicineConfigUpdate", "BabyMedicineConfigOut",
-    "BabyDisabledMedicineItem", "BabyHighRiskAlertItem", "BabySubscriptionCoverageItem"
+    "BabyDisabledMedicineItem", "BabyHighRiskAlertItem", "BabySubscriptionCoverageItem",
+    "BatchProfileBase", "BatchProfileCreate", "BatchProfileUpdate", "BatchProfileOut",
+    "RecallAnnouncementBase", "RecallAnnouncementCreate", "RecallAnnouncementUpdate", "RecallAnnouncementOut",
+    "RecallHitItem", "ManufacturerRecallStatItem"
 ]

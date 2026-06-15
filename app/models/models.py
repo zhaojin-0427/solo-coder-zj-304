@@ -91,6 +91,43 @@ class RiskAlert(Base):
     baby = relationship("BabyProfile", backref="risk_alerts")
 
 
+class BatchProfile(Base):
+    __tablename__ = "batch_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    medicine_id = Column(Integer, ForeignKey("medicines.id"), nullable=False, index=True)
+    batch_number = Column(String(100), nullable=False, index=True)
+    manufacturer = Column(String(200), nullable=True, index=True)
+    approval_number = Column(String(100), nullable=True, index=True)
+    purchase_channel = Column(String(200), nullable=True)
+    batch_notes = Column(Text, nullable=True)
+    is_recalled = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    medicine = relationship("Medicine", backref="batch_profiles")
+
+
+class RecallAnnouncement(Base):
+    __tablename__ = "recall_announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    announcement_number = Column(String(100), nullable=True, unique=True)
+    title = Column(String(300), nullable=False)
+    recall_reason = Column(Text, nullable=True)
+    recall_level = Column(String(20), nullable=False, default="HIGH")
+    match_batch_number = Column(String(100), nullable=True, index=True)
+    match_manufacturer = Column(String(200), nullable=True, index=True)
+    match_medicine_name = Column(String(100), nullable=True, index=True)
+    match_approval_number = Column(String(100), nullable=True, index=True)
+    announcement_date = Column(Date, nullable=True)
+    source = Column(String(300), nullable=True)
+    status = Column(String(20), default="ACTIVE", nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 class BabyMedicineConfig(Base):
     __tablename__ = "baby_medicine_configs"
 

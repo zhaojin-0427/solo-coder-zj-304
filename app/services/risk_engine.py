@@ -19,6 +19,7 @@ ALERT_TYPE_POST_OPEN = "POST_OPEN"
 ALERT_TYPE_AGE_MISMATCH = "AGE_MISMATCH"
 ALERT_TYPE_LOW_STOCK = "LOW_STOCK"
 ALERT_TYPE_BABY_DISABLED = "BABY_DISABLED"
+ALERT_TYPE_RECALL = "RECALL"
 
 
 MEDICINE_TYPE_POST_OPEN_RULES = {
@@ -214,12 +215,43 @@ def check_baby_disabled(
     )
 
 
+def check_recall_risk(medicine: Medicine, db=None) -> Optional[RiskItem]:
+    if db is None:
+        return None
+
+    from app.models import BatchProfile, RecallAnnouncement
+
+    batches = db.query(BatchProfile).filter(
+        BatchProfile.medicine_id == medicine.id,
+        BatchProfile.is_recalled == True
+    ).all()
+
+    if not batches:
+        active_recalls = db.query(RecallAnnouncement).filter(
+            RecallAnnouncement.status == "ACTIVE",
+            RecallAnnouncement.match_medicine_name == medicine.name
+        ).first()
+        if not active_recalls:
+            return None
+
+    batch_numbers = ", ".join(set(b.batch_number for b in batches[:3]))
+    if len(batches) > 3:
+        batch_numbers += f" 等{len(batches)}个批次"
+
+    return RiskItem(
+        alert_type=ALERT_TYPE_RECALL,
+        risk_level=RISK_LEVEL_CRITICAL,
+        message=f"药品存在召回风险！涉及批号：{batch_numbers}，请立即停止使用并查看召回详情。"
+    )
+
+
 def assess_medicine_risk(
     medicine: Medicine,
     baby: BabyProfile = None,
     age_months: int = None,
     today: date = None,
-    baby_config: Optional[object] = None
+    baby_config: Optional[object] = None,
+    db: Optional[object] = None
 ) -> RiskAssessment:
     if today is None:
         today = date.today()
@@ -251,6 +283,10 @@ def assess_medicine_risk(
         stock_risk = check_stock_level(medicine)
         if stock_risk:
             risks.append(stock_risk)
+
+    recall_risk = check_recall_risk(medicine, db=db)
+    if recall_risk:
+        risks.append(recall_risk)
 
     overall_risk = RISK_LEVEL_LOW
     if risks:
@@ -298,6 +334,7 @@ def generate_advice(overall_risk: str, risks: List[RiskItem], baby_config: Optio
     has_post_open = any(r.alert_type == ALERT_TYPE_POST_OPEN for r in risks)
     has_age = any(r.alert_type == ALERT_TYPE_AGE_MISMATCH for r in risks)
     has_stock = any(r.alert_type == ALERT_TYPE_LOW_STOCK for r in risks)
+    has_recall = any(r.alert_type == ALERT_TYPE_RECALL for r in risks)
 
     if has_critical:
         advice_parts.append("【重要警示】存在严重风险，请立即处理！")
@@ -318,6 +355,9 @@ def generate_advice(overall_risk: str, risks: List[RiskItem], baby_config: Optio
 
     if has_stock:
         advice_parts.append("【库存提醒】库存不足，请及时补货，避免需要时无药可用。")
+
+    if has_recall:
+        advice_parts.append("【召回预警】该药品存在召回风险，请立即停止使用并查看召回详情，按指引处理召回批次药品。")
 
     advice_parts.append("【就医提示】宝宝病情严重或持续不缓解时，请及时就医，切勿自行用药延误治疗。")
 

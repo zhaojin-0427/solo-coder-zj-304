@@ -256,6 +256,101 @@ class BabyHighRiskAlertItem(BaseModel):
     critical_risk_alert_count: int
 
 
+class BatchProfileBase(BaseModel):
+    medicine_id: int = Field(..., description="药品ID")
+    batch_number: str = Field(..., max_length=100, description="生产批号")
+    manufacturer: Optional[str] = Field(None, max_length=200, description="生产厂家")
+    approval_number: Optional[str] = Field(None, max_length=100, description="批准文号")
+    purchase_channel: Optional[str] = Field(None, max_length=200, description="购买渠道")
+    batch_notes: Optional[str] = Field(None, description="批次备注")
+
+
+class BatchProfileCreate(BatchProfileBase):
+    pass
+
+
+class BatchProfileUpdate(BaseModel):
+    batch_number: Optional[str] = Field(None, max_length=100)
+    manufacturer: Optional[str] = Field(None, max_length=200)
+    approval_number: Optional[str] = Field(None, max_length=100)
+    purchase_channel: Optional[str] = Field(None, max_length=200)
+    batch_notes: Optional[str] = None
+
+
+class BatchProfileOut(BatchProfileBase):
+    id: int
+    is_recalled: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RecallAnnouncementBase(BaseModel):
+    announcement_number: Optional[str] = Field(None, max_length=100, description="公告编号")
+    title: str = Field(..., max_length=300, description="召回公告标题")
+    recall_reason: Optional[str] = Field(None, description="召回原因")
+    recall_level: str = Field("HIGH", max_length=20, description="召回等级：HIGH/CRITICAL")
+    match_batch_number: Optional[str] = Field(None, max_length=100, description="匹配批号")
+    match_manufacturer: Optional[str] = Field(None, max_length=200, description="匹配厂家")
+    match_medicine_name: Optional[str] = Field(None, max_length=100, description="匹配药品名称")
+    match_approval_number: Optional[str] = Field(None, max_length=100, description="匹配批准文号")
+    announcement_date: Optional[date] = Field(None, description="公告日期")
+    source: Optional[str] = Field(None, max_length=300, description="公告来源")
+    notes: Optional[str] = Field(None, description="备注")
+
+
+class RecallAnnouncementCreate(RecallAnnouncementBase):
+    pass
+
+
+class RecallAnnouncementUpdate(BaseModel):
+    announcement_number: Optional[str] = Field(None, max_length=100)
+    title: Optional[str] = Field(None, max_length=300)
+    recall_reason: Optional[str] = None
+    recall_level: Optional[str] = Field(None, max_length=20)
+    match_batch_number: Optional[str] = Field(None, max_length=100)
+    match_manufacturer: Optional[str] = Field(None, max_length=200)
+    match_medicine_name: Optional[str] = Field(None, max_length=100)
+    match_approval_number: Optional[str] = Field(None, max_length=100)
+    announcement_date: Optional[date] = None
+    source: Optional[str] = Field(None, max_length=300)
+    status: Optional[str] = Field(None, max_length=20)
+    notes: Optional[str] = None
+
+
+class RecallAnnouncementOut(RecallAnnouncementBase):
+    id: int
+    status: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RecallHitItem(BaseModel):
+    batch_id: int
+    batch_number: str
+    medicine_id: int
+    medicine_name: str
+    manufacturer: Optional[str] = None
+    approval_number: Optional[str] = None
+    recall_id: int
+    recall_title: str
+    recall_level: str
+    recall_reason: Optional[str] = None
+    match_field: str
+
+
+class ManufacturerRecallStatItem(BaseModel):
+    manufacturer: str
+    recall_count: int
+    affected_medicine_count: int
+    affected_batch_count: int
+
+
 class BabySubscriptionCoverageItem(BaseModel):
     baby_id: int
     baby_name: str

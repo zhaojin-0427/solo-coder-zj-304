@@ -13,6 +13,7 @@ from app.services.risk_engine import (
     check_age_appropriateness,
     check_stock_level,
     check_baby_disabled,
+    check_recall_risk,
     get_age_group,
     EXPIRING_SOON_DAYS,
     RISK_LEVEL_LOW,
@@ -89,6 +90,10 @@ def get_statistics_overview(
     baby_high_risk_alerts = _get_baby_high_risk_alerts(db, baby_id)
     baby_subscription_coverage = _get_baby_subscription_coverage(db, baby_id)
 
+    from app.services.recall_service import get_unhandled_recall_count, get_recall_stats_by_manufacturer
+    recall_stats = get_recall_stats_by_manufacturer(db)
+    unhandled_recall_count = get_unhandled_recall_count(db)
+
     result = {
         "total_medicines": total,
         "expiring_soon_count": expiring_soon_count,
@@ -101,7 +106,9 @@ def get_statistics_overview(
         "high_frequency_restock": high_freq_restock,
         "baby_disabled_medicines": baby_disabled_medicines,
         "baby_high_risk_alerts": baby_high_risk_alerts,
-        "baby_subscription_coverage": baby_subscription_coverage
+        "baby_subscription_coverage": baby_subscription_coverage,
+        "unhandled_recall_count": unhandled_recall_count,
+        "recall_stats_by_manufacturer": recall_stats
     }
     return success_response(data=result, message="统计数据获取成功")
 
@@ -133,7 +140,8 @@ def get_alert_summary(
             "EXPIRY": 0,
             "POST_OPEN": 0,
             "AGE_MISMATCH": 0,
-            "LOW_STOCK": 0
+            "LOW_STOCK": 0,
+            "RECALL": 0
         },
         "by_level": {
             "CRITICAL": 0,
@@ -180,6 +188,12 @@ def get_alert_summary(
                 alert_summary["total_alerts"] += 1
                 alert_summary["by_type"]["AGE_MISMATCH"] += 1
                 alert_summary["by_level"][age_risk.risk_level] += 1
+
+        recall_risk = check_recall_risk(med, db=db)
+        if recall_risk:
+            alert_summary["total_alerts"] += 1
+            alert_summary["by_type"]["RECALL"] += 1
+            alert_summary["by_level"][recall_risk.risk_level] += 1
 
     return success_response(data=alert_summary, message="告警统计成功")
 
@@ -437,7 +451,7 @@ def _get_baby_high_risk_alerts(db: Session, baby_id: Optional[int] = None) -> Li
                 continue
 
             from app.services.risk_engine import assess_medicine_risk
-            assessment = assess_medicine_risk(med, baby=baby, baby_config=config)
+            assessment = assess_medicine_risk(med, baby=baby, baby_config=config, db=db)
             if assessment.overall_risk == RISK_LEVEL_CRITICAL:
                 critical_risk_count += 1
             elif assessment.overall_risk == RISK_LEVEL_HIGH:

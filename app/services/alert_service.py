@@ -26,7 +26,7 @@ def sync_alerts_for_medicine(
         today = date.today()
 
     assessment = assess_medicine_risk(
-        medicine, baby=baby, age_months=age_months, today=today, baby_config=baby_config
+        medicine, baby=baby, age_months=age_months, today=today, baby_config=baby_config, db=db
     )
 
     baby_id = baby.id if baby else None
