@@ -58,12 +58,18 @@ def health_check():
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = exc.errors()
+    errors = []
     error_messages = []
-    for err in errors:
-        loc = " -> ".join([str(x) for x in err.get("loc", [])])
-        msg = err.get("msg", "")
-        error_messages.append(f"[{loc}]: {msg}")
+    for err in exc.errors():
+        err_dict = {
+            "type": err.get("type", ""),
+            "loc": [str(x) for x in err.get("loc", [])],
+            "msg": err.get("msg", ""),
+            "input": str(err.get("input", ""))
+        }
+        errors.append(err_dict)
+        loc = " -> ".join(err_dict["loc"])
+        error_messages.append(f"[{loc}]: {err_dict['msg']}")
 
     message = "参数校验失败: " + "; ".join(error_messages) if error_messages else "参数校验失败"
     return JSONResponse(

@@ -70,9 +70,16 @@ AGE_RULES = {
 }
 
 
-def check_expiry(medicine: Medicine, today: date = None) -> Optional[RiskItem]:
+def check_expiry(
+    medicine: Medicine,
+    today: date = None,
+    expiring_soon_days: int = EXPIRING_SOON_DAYS
+) -> Optional[RiskItem]:
     if today is None:
         today = date.today()
+
+    if expiring_soon_days <= 0:
+        expiring_soon_days = EXPIRING_SOON_DAYS
 
     days_to_expiry = (medicine.expiry_date - today).days
 
@@ -88,7 +95,7 @@ def check_expiry(medicine: Medicine, today: date = None) -> Optional[RiskItem]:
             risk_level=RISK_LEVEL_HIGH,
             message=f"药品将在 {days_to_expiry} 天后过期，请尽快使用或更换。"
         )
-    elif days_to_expiry <= EXPIRING_SOON_DAYS:
+    elif days_to_expiry <= expiring_soon_days:
         return RiskItem(
             alert_type=ALERT_TYPE_EXPIRY,
             risk_level=RISK_LEVEL_MEDIUM,

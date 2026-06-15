@@ -73,7 +73,7 @@ def expiry_monitor(
     post_open_expired = []
 
     for med in medicines:
-        expiry_risk = check_expiry(med, today)
+        expiry_risk = check_expiry(med, today, expiring_soon_days=days)
         if expiry_risk:
             days_to_expiry = (med.expiry_date - today).days
             item = {
@@ -222,19 +222,22 @@ def _get_age_advice(medicine: Medicine, age_months: int) -> str:
     from app.services.risk_engine import AGE_RULES
 
     advice = []
+    type_warning = ""
     type_rules = AGE_RULES.get(medicine.medicine_type, [])
     for rule in type_rules:
         if rule["min_age"] <= age_months < rule["max_age"]:
-            if rule["warning"]:
-                advice.append(rule["warning"])
+            type_warning = rule["warning"]
             break
 
     if age_months < medicine.min_age_months:
-        advice.append("宝宝月龄低于药品最低适用年龄，请勿使用。")
+        advice.append(f"【不适用】宝宝月龄 {age_months} 个月，低于药品最低适用月龄 {medicine.min_age_months} 个月，请勿使用。")
     elif age_months > medicine.max_age_months:
-        advice.append("宝宝月龄已超过药品最高适用年龄，建议更换更合适的药品。")
+        advice.append(f"【超龄】宝宝月龄 {age_months} 个月，已超过药品最高适用月龄 {medicine.max_age_months} 个月，建议更换更合适的药品。")
     else:
-        advice.insert(0, "月龄在药品适用范围内。")
+        if type_warning:
+            advice.append(f"【适用但需注意】月龄在药品适用范围内。{type_warning}")
+        else:
+            advice.append("【适用】月龄在药品适用范围内，可按说明书使用。")
 
     advice.append("用药前请仔细阅读药品说明书，如有疑问请咨询医生。")
     return " ".join(advice)

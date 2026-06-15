@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import date, datetime
 from typing import Optional, List
 
@@ -58,6 +58,13 @@ class BabyProfileBase(BaseModel):
     allergies: Optional[str] = Field(None, description="过敏史")
     medical_history: Optional[str] = Field(None, description="病史")
 
+    @field_validator("birth_date")
+    @classmethod
+    def validate_birth_date(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("出生日期不能晚于今天")
+        return v
+
 
 class BabyProfileCreate(BabyProfileBase):
     pass
@@ -69,6 +76,13 @@ class BabyProfileUpdate(BaseModel):
     gender: Optional[str] = Field(None, max_length=10)
     allergies: Optional[str] = None
     medical_history: Optional[str] = None
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_birth_date(cls, v: Optional[date]) -> Optional[date]:
+        if v is not None and v > date.today():
+            raise ValueError("出生日期不能晚于今天")
+        return v
 
 
 class BabyProfileOut(BabyProfileBase):

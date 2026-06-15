@@ -43,6 +43,8 @@ def get_statistics_overview(
     baby = None
     if baby_id:
         baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
 
     for med in medicines:
         expiry_risk = check_expiry(med, today)
@@ -102,6 +104,8 @@ def get_alert_summary(
     baby = None
     if baby_id:
         baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
 
     alert_summary = {
         "total_alerts": 0,
