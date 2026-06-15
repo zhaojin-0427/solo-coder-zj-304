@@ -12,6 +12,7 @@ from app.services.risk_engine import (
     check_stock_level,
     EXPIRING_SOON_DAYS
 )
+from app.services.alert_service import sync_alerts_for_medicine, sync_alerts_for_all
 from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/api/risk", tags=["风险提醒与监控"])
@@ -23,22 +24,17 @@ def assess_all_medicines(
     age_months: Optional[int] = Query(None, description="直接传月龄，优先级低于baby_id"),
     db: Session = Depends(get_db)
 ):
-    medicines = db.query(Medicine).all()
-
     baby = None
     if baby_id:
         baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
         if not baby:
             return error_response(code=404, message="宝宝档案不存在")
 
-    results = []
-    for med in medicines:
-        assessment = assess_medicine_risk(med, baby=baby, age_months=age_months)
-        results.append(assessment.model_dump())
-
+    assessments = sync_alerts_for_all(db, baby=baby, age_months=age_months)
+    results = [a.model_dump() for a in assessments]
     results.sort(key=lambda x: _risk_priority(x["overall_risk"]))
 
-    return success_response(data=results, message="风险评估完成")
+    return success_response(data=results, message="风险评估完成，告警已同步")
 
 
 @router.get("/assess/{medicine_id}", response_model=dict)
@@ -58,8 +54,8 @@ def assess_single_medicine(
         if not baby:
             return error_response(code=404, message="宝宝档案不存在")
 
-    assessment = assess_medicine_risk(medicine, baby=baby, age_months=age_months)
-    return success_response(data=assessment.model_dump(), message="风险评估完成")
+    assessment = sync_alerts_for_medicine(db, medicine, baby=baby, age_months=age_months)
+    return success_response(data=assessment.model_dump(), message="风险评估完成，告警已同步")
 
 
 @router.get("/expiry-monitor", response_model=dict)

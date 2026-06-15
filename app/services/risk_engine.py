@@ -107,8 +107,11 @@ def check_post_open_validity(medicine: Medicine, today: date = None) -> Optional
     post_open_days = (today - medicine.open_date).days
 
     validity_days = medicine.post_open_validity_days
-    if medicine.medicine_type in MEDICINE_TYPE_POST_OPEN_RULES:
-        validity_days = MEDICINE_TYPE_POST_OPEN_RULES[medicine.medicine_type]
+    if not validity_days or validity_days <= 0:
+        if medicine.medicine_type in MEDICINE_TYPE_POST_OPEN_RULES:
+            validity_days = MEDICINE_TYPE_POST_OPEN_RULES[medicine.medicine_type]
+        else:
+            validity_days = 30
 
     if post_open_days > validity_days:
         return RiskItem(

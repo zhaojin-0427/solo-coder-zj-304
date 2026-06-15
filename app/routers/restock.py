@@ -93,7 +93,9 @@ def _generate_suggestion(medicine: Medicine) -> Optional[dict]:
 
     from datetime import date
     days_to_expiry = (medicine.expiry_date - date.today()).days
-    if days_to_expiry < 30:
+    if days_to_expiry < 0:
+        reason += f"；注意：当前库存药品已过期 {abs(days_to_expiry)} 天，请勿使用，建议直接更换新药"
+    elif days_to_expiry < 30:
         reason += f"；注意：药品仅剩 {days_to_expiry} 天过期，补货时请注意有效期"
 
     return {
