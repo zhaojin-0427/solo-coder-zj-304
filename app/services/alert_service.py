@@ -29,9 +29,12 @@ def sync_alerts_for_medicine(
         medicine, baby=baby, age_months=age_months, today=today, baby_config=baby_config
     )
 
+    baby_id = baby.id if baby else None
+
     for risk in assessment.risks:
         existing = db.query(RiskAlert).filter(
             RiskAlert.medicine_id == medicine.id,
+            RiskAlert.baby_id == baby_id,
             RiskAlert.alert_type == risk.alert_type,
             RiskAlert.risk_level == risk.risk_level,
             RiskAlert.is_read == False
@@ -40,6 +43,7 @@ def sync_alerts_for_medicine(
         if not existing:
             alert = RiskAlert(
                 medicine_id=medicine.id,
+                baby_id=baby_id,
                 alert_type=risk.alert_type,
                 risk_level=risk.risk_level,
                 message=risk.message,

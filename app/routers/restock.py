@@ -59,8 +59,10 @@ def get_restock_suggestions(
     suggestions: List[dict] = []
 
     baby = None
-    if baby_id:
+    if baby_id is not None:
         baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
 
     for med in medicines:
         baby_config = None

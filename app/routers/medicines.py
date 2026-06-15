@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.database import get_db
-from app.models import Medicine
+from app.models import Medicine, MedicationRecord, RestockRecord, RiskAlert, BabyMedicineConfig
 from app.schemas import MedicineCreate, MedicineUpdate, MedicineOut, MedicineList
 from app.utils import success_response, error_response
 
@@ -72,6 +72,11 @@ def delete_medicine(medicine_id: int, db: Session = Depends(get_db)):
     db_medicine = db.query(Medicine).filter(Medicine.id == medicine_id).first()
     if not db_medicine:
         return error_response(code=404, message="药品不存在")
+
+    db.query(RiskAlert).filter(RiskAlert.medicine_id == medicine_id).delete(synchronize_session=False)
+    db.query(MedicationRecord).filter(MedicationRecord.medicine_id == medicine_id).delete(synchronize_session=False)
+    db.query(RestockRecord).filter(RestockRecord.medicine_id == medicine_id).delete(synchronize_session=False)
+    db.query(BabyMedicineConfig).filter(BabyMedicineConfig.medicine_id == medicine_id).delete(synchronize_session=False)
 
     db.delete(db_medicine)
     db.commit()

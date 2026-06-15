@@ -4,7 +4,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 from app.database import get_db
-from app.models import BabyProfile
+from app.models import BabyProfile, MedicationRecord, RiskAlert, BabyMedicineConfig
 from app.schemas import BabyProfileCreate, BabyProfileUpdate, BabyProfileOut
 from app.utils import success_response, error_response
 
@@ -78,6 +78,10 @@ def delete_baby(baby_id: int, db: Session = Depends(get_db)):
     db_baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
     if not db_baby:
         return error_response(code=404, message="宝宝档案不存在")
+
+    db.query(RiskAlert).filter(RiskAlert.baby_id == baby_id).delete(synchronize_session=False)
+    db.query(MedicationRecord).filter(MedicationRecord.baby_id == baby_id).delete(synchronize_session=False)
+    db.query(BabyMedicineConfig).filter(BabyMedicineConfig.baby_id == baby_id).delete(synchronize_session=False)
 
     db.delete(db_baby)
     db.commit()

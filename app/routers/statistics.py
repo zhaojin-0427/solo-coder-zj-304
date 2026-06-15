@@ -195,6 +195,8 @@ def get_age_risk_distribution(
     baby = None
     if baby_id:
         baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
 
     data = _get_age_risk_distribution(medicines, baby, age_months)
     return success_response(data=data, message="月龄风险分布统计成功")
@@ -483,6 +485,11 @@ def get_baby_summary(
     baby_id: Optional[int] = Query(None, description="宝宝ID，不传则返回所有宝宝的汇总"),
     db: Session = Depends(get_db)
 ):
+    if baby_id is not None:
+        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
+
     baby_disabled = _get_baby_disabled_medicines(db, baby_id)
     baby_risks = _get_baby_high_risk_alerts(db, baby_id)
     baby_coverage = _get_baby_subscription_coverage(db, baby_id)

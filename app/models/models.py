@@ -80,6 +80,7 @@ class RiskAlert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     medicine_id = Column(Integer, ForeignKey("medicines.id"), nullable=False)
+    baby_id = Column(Integer, ForeignKey("baby_profiles.id"), nullable=True, index=True)
     alert_type = Column(String(50), nullable=False)
     risk_level = Column(String(20), nullable=False)
     message = Column(Text, nullable=False)
@@ -87,6 +88,7 @@ class RiskAlert(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     medicine = relationship("Medicine", back_populates="risk_alerts")
+    baby = relationship("BabyProfile", backref="risk_alerts")
 
 
 class BabyMedicineConfig(Base):

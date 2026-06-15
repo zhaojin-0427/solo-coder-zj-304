@@ -179,6 +179,8 @@ class RiskAlertOut(BaseModel):
     id: int
     medicine_id: int
     medicine_name: Optional[str] = None
+    baby_id: Optional[int] = None
+    baby_name: Optional[str] = None
     alert_type: str
     risk_level: str
     message: str

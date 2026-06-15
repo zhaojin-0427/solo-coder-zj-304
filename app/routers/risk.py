@@ -74,6 +74,11 @@ def expiry_monitor(
     from datetime import date, timedelta
     today = date.today()
 
+    if baby_id is not None:
+        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
+
     medicines = db.query(Medicine).all()
     expiring_soon = []
     expired = []
@@ -205,6 +210,7 @@ def age_appropriateness_check(
 def list_risk_alerts(
     is_read: Optional[bool] = Query(None),
     risk_level: Optional[str] = Query(None),
+    baby_id: Optional[int] = Query(None, description="按宝宝ID筛选"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -215,6 +221,11 @@ def list_risk_alerts(
         query = query.filter(RiskAlert.is_read == is_read)
     if risk_level:
         query = query.filter(RiskAlert.risk_level == risk_level)
+    if baby_id is not None:
+        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
+        query = query.filter(RiskAlert.baby_id == baby_id)
 
     total = query.count()
     alerts = query.order_by(RiskAlert.created_at.desc()).offset(skip).limit(limit).all()
@@ -225,6 +236,8 @@ def list_risk_alerts(
             "id": alert.id,
             "medicine_id": alert.medicine_id,
             "medicine_name": alert.medicine.name if alert.medicine else None,
+            "baby_id": alert.baby_id,
+            "baby_name": alert.baby.name if alert.baby else None,
             "alert_type": alert.alert_type,
             "risk_level": alert.risk_level,
             "message": alert.message,

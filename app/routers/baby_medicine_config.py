@@ -47,9 +47,15 @@ def list_baby_medicine_configs(
 ):
     query = db.query(BabyMedicineConfig)
 
-    if baby_id:
+    if baby_id is not None:
+        baby = db.query(BabyProfile).filter(BabyProfile.id == baby_id).first()
+        if not baby:
+            return error_response(code=404, message="宝宝档案不存在")
         query = query.filter(BabyMedicineConfig.baby_id == baby_id)
-    if medicine_id:
+    if medicine_id is not None:
+        medicine = db.query(Medicine).filter(Medicine.id == medicine_id).first()
+        if not medicine:
+            return error_response(code=404, message="药品不存在")
         query = query.filter(BabyMedicineConfig.medicine_id == medicine_id)
 
     total = query.count()
