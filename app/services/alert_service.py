@@ -47,7 +47,8 @@ def sync_alerts_for_medicine(
                 alert_type=risk.alert_type,
                 risk_level=risk.risk_level,
                 message=risk.message,
-                is_read=False
+                is_read=False,
+                disposition_status="PENDING"
             )
             db.add(alert)
 

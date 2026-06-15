@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.database import engine, Base
+from app.database import engine, Base, migrate_db
 from app.routers import (
     medicines_router,
     baby_router,
@@ -12,11 +12,13 @@ from app.routers import (
     risk_router,
     statistics_router,
     baby_medicine_config_router,
-    batch_router
+    batch_router,
+    disposition_router
 )
 from app.utils import success_response, error_response
 
 Base.metadata.create_all(bind=engine)
+migrate_db()
 
 app = FastAPI(
     title="家庭宝宝常备药有效期监控与用药风险提醒 API",
@@ -40,6 +42,7 @@ app.include_router(risk_router)
 app.include_router(statistics_router)
 app.include_router(baby_medicine_config_router)
 app.include_router(batch_router)
+app.include_router(disposition_router)
 
 
 @app.get("/", tags=["根路径"])

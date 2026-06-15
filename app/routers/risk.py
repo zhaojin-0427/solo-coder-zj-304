@@ -254,6 +254,7 @@ def list_risk_alerts(
             "risk_level": alert.risk_level,
             "message": alert.message,
             "is_read": alert.is_read,
+            "disposition_status": alert.disposition_status,
             "created_at": alert.created_at.isoformat() if alert.created_at else None
         }
         result_items.append(item)

@@ -54,7 +54,8 @@ def check_medicine_recall_risk(medicine: Medicine, db: Session) -> List[RiskAler
                     alert_type=ALERT_TYPE_RECALL,
                     risk_level=risk_level,
                     message=f"药品召回预警：批号 {batch.batch_number} 命中召回公告「{recall.title}」(公告编号:{recall.announcement_number or recall.id})，匹配字段:{match_field}，原因:{recall.recall_reason or '未说明'}",
-                    is_read=False
+                    is_read=False,
+                    disposition_status="PENDING"
                 )
                 db.add(alert)
                 alerts.append(alert)
@@ -146,7 +147,8 @@ def generate_recall_alerts_for_hits(hits: List[RecallHitItem], db: Session):
                 alert_type=ALERT_TYPE_RECALL,
                 risk_level=risk_level,
                 message=f"药品召回预警：批号 {hit.batch_number} 命中召回公告「{hit.recall_title}」(公告编号:{hit.recall_id})，匹配字段:{hit.match_field}，原因:{hit.recall_reason or '未说明'}",
-                is_read=False
+                is_read=False,
+                disposition_status="PENDING"
             )
             db.add(alert)
 
